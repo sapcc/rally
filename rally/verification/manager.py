@@ -21,6 +21,9 @@ import sys
 
 import six
 
+from pip._internal.req import parse_requirements
+from pip._internal import get_installed_distributions
+
 from rally.common.io import subunit_v2
 from rally.common import logging
 from rally.common.plugin import plugin
@@ -279,10 +282,10 @@ class VerifierManager(plugin.Plugin):
         reqs_file_path = reqs_file_path or os.path.join(self.repo_dir,
                                                         "requirements.txt")
         required_packages = set(
-            [r.name.lower() for r in pip._internal.req.parse_requirements(
+            [r.name.lower() for r in parse_requirements(
                 reqs_file_path, session=False)])
         installed_packages = set(
-            [r.key for r in pip.get_installed_distributions()])
+            [r.key for r in get_installed_distributions()])
         missed_packages = required_packages - installed_packages
         if missed_packages:
             raise VerifierSetupFailure(
