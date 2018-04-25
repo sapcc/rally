@@ -56,3 +56,4 @@ kubernetes>1.0.0                                       # Apache License Version 
 stestr
 future
 voluptuous
+designate-tempest-plugin
