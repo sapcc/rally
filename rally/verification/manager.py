@@ -279,7 +279,7 @@ class VerifierManager(plugin.Plugin):
         reqs_file_path = reqs_file_path or os.path.join(self.repo_dir,
                                                         "requirements.txt")
         required_packages = set(
-            [r.name.lower() for r in pip.req.parse_requirements(
+            [r.name.lower() for r in pip._internal.req.parse_requirements(
                 reqs_file_path, session=False)])
         installed_packages = set(
             [r.key for r in pip.get_installed_distributions()])
