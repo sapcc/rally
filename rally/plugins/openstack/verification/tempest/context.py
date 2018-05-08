@@ -61,7 +61,7 @@ class TempestContext(context.VerifierContext):
 
         utils.create_dir(self.data_dir)
 
-        self._create_tempest_roles()
+#        self._create_tempest_roles()
 
         self._configure_option("DEFAULT", "log_file",
                                os.path.join(self.data_dir, "tempest.log"))
@@ -80,26 +80,26 @@ class TempestContext(context.VerifierContext):
         self._configure_option("compute", "flavor_ref_alt",
                                helper_method=self._discover_or_create_flavor,
                                flv_ram=conf.CONF.openstack.flavor_ref_alt_ram)
-        if "neutron" in self.available_services:
-            neutronclient = self.clients.neutron()
-            if neutronclient.list_networks(shared=True)["networks"]:
-                # If the OpenStack cloud has some shared networks, we will
-                # create our own shared network and specify its name in the
-                # Tempest config file. Such approach will allow us to avoid
-                # failures of Tempest tests with error "Multiple possible
-                # networks found". Otherwise the default behavior defined in
-                # Tempest will be used and Tempest itself will manage network
-                # resources.
-                LOG.debug("Shared networks found. "
-                          "'fixed_network_name' option should be configured.")
-                self._configure_option(
-                    "compute", "fixed_network_name",
-                    helper_method=self._create_network_resources)
-        if "heat" in self.available_services:
-            self._configure_option(
-                "orchestration", "instance_type",
-                helper_method=self._discover_or_create_flavor,
-                flv_ram=conf.CONF.openstack.heat_instance_type_ram)
+#        if "neutron" in self.available_services:
+#            neutronclient = self.clients.neutron()
+#            if neutronclient.list_networks(shared=True)["networks"]:
+#                # If the OpenStack cloud has some shared networks, we will
+#                # create our own shared network and specify its name in the
+#                # Tempest config file. Such approach will allow us to avoid
+#                # failures of Tempest tests with error "Multiple possible
+#                # networks found". Otherwise the default behavior defined in
+#                # Tempest will be used and Tempest itself will manage network
+#                # resources.
+#                LOG.debug("Shared networks found. "
+#                          "'fixed_network_name' option should be configured.")
+#                self._configure_option(
+#                    "compute", "fixed_network_name",
+#                    helper_method=self._create_network_resources)
+#        if "heat" in self.available_services:
+#            self._configure_option(
+#                "orchestration", "instance_type",
+#                helper_method=self._discover_or_create_flavor,
+#                flv_ram=conf.CONF.openstack.heat_instance_type_ram)
 
         with open(self.conf_path, "w") as configfile:
             self.conf.write(configfile)
