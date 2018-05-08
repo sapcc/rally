@@ -35,8 +35,7 @@ class TempestConfigfileManager(object):
     def __init__(self, deployment):
         self.credential = deployment.get_credentials_for("openstack")["admin"]
         self.clients = self.credential.clients()
-#        self.available_services = self.clients.services().values()
-        self.available_services = ["keystone", "designate"]
+        self.available_services = self.clients.services().values()
 
         self.conf = configparser.ConfigParser()
 
