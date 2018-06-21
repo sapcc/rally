@@ -13,7 +13,7 @@ oslo.config>=5.1.0                                     # Apache Software License
 # do not forget to remove `testresources` from test-requirements. it is a dependency of oslo.db for tests
 oslo.db>=4.27.0                                        # Apache Software License
 oslo.log>=3.36.0                                       # Apache Software License
-oslo.concurrency>=3.26.0                               # Apache Software License
+oslo.concurrency>=3.25.0                               # Apache Software License
 oslo.utils>=3.33.0                                     # Apache Software License
 oslo.context
 paramiko>=2.0.0                                        # LGPL
@@ -56,7 +56,7 @@ python-zaqarclient>=1.0.0                              # Apache Software License
 kubernetes>1.0.0                                       # Apache License Version 2.0
 dnspython>=1.14.0
 ddt>=1.0.1
-tempest>=17.0.0
+#tempest>=17.0.0
 stestr
 future
 voluptuous
