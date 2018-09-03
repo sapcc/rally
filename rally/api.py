@@ -137,16 +137,6 @@ class _Deployment(APIGroup):
     def get(self, deployment):
         return self._get(deployment).to_dict()
 
-    def service_list(self, deployment):
-        """Get the services list.
-
-        :param deployment: Deployment object
-        :returns: Service list
-        """
-        # TODO(astudenov): make this method platform independent
-        admin = deployment.get_credentials_for("openstack")["admin"]
-        return admin.list_services()
-
     def list(self, status=None, parent_uuid=None, name=None):
         """Get the deployments list.
 
@@ -429,7 +419,7 @@ class _Task(APIGroup):
 
         return task["uuid"], task.get_status(task["uuid"])
 
-    def abort(self, task_uuid, soft=False, async=True):
+    def abort(self, task_uuid, soft=False, wait=False, **kwargs):
         """Abort running task.
 
         :param task_uuid: The UUID of the task
@@ -438,11 +428,22 @@ class _Task(APIGroup):
                      current scenario, otherwise as soon as possible before
                      all the scenario iterations finish [Default: False]
         :type soft: bool
-        :param async: don't wait until task became in 'running' state
-                      [Default: False]
-        :type async: bool
+        :param wait: wait until task stops [Default: False]
+        :type wait: bool
         """
-        if not async:
+        if kwargs:
+            if len(kwargs) != 1 or "async" not in kwargs:
+                raise TypeError("API method task.abort accept only one "
+                                "argument 'async' (which is deprecated in "
+                                "favor of 'wait').")
+            elif "async" in kwargs:
+                LOG.warning("The argument 'async' of API method task.abort is "
+                            "deprecated since Rally 1.1.0 in favor of new "
+                            "argument 'wait' which doesn't conflict with a "
+                            "reserved keywords in python 3.7")
+                wait = not kwargs["async"]
+
+        if wait:
             current_status = objects.Task.get_status(task_uuid)
             if current_status in objects.Task.NOT_IMPLEMENTED_STAGES_FOR_ABORT:
                 LOG.info(
@@ -455,7 +456,7 @@ class _Task(APIGroup):
 
         objects.Task.get(task_uuid).abort(soft=soft)
 
-        if not async:
+        if wait:
             LOG.info("Waiting until the task stops.")
             finished_stages = [consts.TaskStatus.ABORTED,
                                consts.TaskStatus.FINISHED,

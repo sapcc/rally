@@ -155,6 +155,86 @@ class EnvCommandsTestCase(test.TestCase):
 
     @mock.patch("rally.env.env_mgr.EnvManager.get")
     @mock.patch("rally.cli.commands.env.print")
+    def test_cleanup(self, mock_print, mock_env_manager_get):
+        env_ = mock.Mock()
+        env_inst = mock_env_manager_get.return_value
+        env_inst.cleanup.return_value = {
+            "existing@docker": {
+                "message": "Success",
+                "discovered": 5,
+                "deleted": 5,
+                "failed": 0,
+                "errors": []
+            },
+            "existing@openstack": {
+                "message": "It is OpenStack. several failures are ok :)",
+                "discovered": 10,
+                "deleted": 8,
+                "failed": 2,
+                "errors": [
+                    {"message": "Port disappeared",
+                     "traceback": "traceback"}
+                ]
+            }
+        }
+        self.assertEqual(1, self.env.cleanup(self.api, env_))
+        mock_env_manager_get.assert_called_once_with(env_)
+        env_inst.cleanup.assert_called_once_with()
+
+        actual_print = "\n".join(
+            [call_args[0]
+             for call_args, _call_kwargs in mock_print.call_args_list])
+        expected_print = (
+            "Cleaning up resources for %(env)s\n"
+            "Cleaning is finished. See the results bellow.\n"
+            "\n"
+            "Information for existing@docker platform.\n"
+            "%(hr)s\n"
+            "Status: Success\n"
+            "Total discovered: 5\n"
+            "Total deleted: 5\n"
+            "Total failed: 0\n"
+            "\n"
+            "Information for existing@openstack platform.\n"
+            "%(hr)s\n"
+            "Status: It is OpenStack. several failures are ok :)\n"
+            "Total discovered: 10\n"
+            "Total deleted: 8\n"
+            "Total failed: 2\n"
+            "Errors:\n"
+            "\t- Port disappeared" % {"env": env_inst, "hr": "=" * 80})
+        self.assertEqual(expected_print, actual_print)
+
+    @mock.patch("rally.env.env_mgr.EnvManager.get")
+    @mock.patch("rally.cli.commands.env.print")
+    def test_cleanup_to_json(self, mock_print, mock_env_manager_get):
+        env_ = mock.Mock()
+        env_inst = mock_env_manager_get.return_value
+        env_inst.cleanup.return_value = {
+            "existing@docker": {
+                "message": "Success",
+                "discovered": 5,
+                "deleted": 5,
+                "failed": 0,
+                "errors": []
+            },
+            "existing@openstack": {
+                "message": "It is OpenStack. several failures are ok :)",
+                "discovered": 10,
+                "deleted": 8,
+                "failed": 2,
+                "errors": [
+                    {"message": "Port disappeared",
+                     "traceback": "traceback"}
+                ]
+            }
+        }
+        self.assertEqual(1, self.env.cleanup(self.api, env_, to_json=True))
+        mock_print.assert_called_once_with(
+            json.dumps(env_inst.cleanup.return_value, indent=2))
+
+    @mock.patch("rally.env.env_mgr.EnvManager.get")
+    @mock.patch("rally.cli.commands.env.print")
     def test_destroy(self, mock_print, mock_env_manager_get):
         env_ = mock.Mock()
         env_inst = mock_env_manager_get.return_value
@@ -339,8 +419,8 @@ class EnvCommandsTestCase(test.TestCase):
                 "+-----------+----------+---------+\n"
                 "| Available | Platform | Message |\n"
                 "+-----------+----------+---------+\n"
-                "| :-(       | p2       | BAD !   |\n"
                 "| :-)       | p1       | OK!     |\n"
+                "| :-(       | p2       | BAD !   |\n"
                 "+-----------+----------+---------+"
             )
         ])
@@ -363,8 +443,8 @@ class EnvCommandsTestCase(test.TestCase):
                 "+-----------+----------+---------+--------+\n"
                 "| Available | Platform | Message | Plugin |\n"
                 "+-----------+----------+---------+--------+\n"
-                "| :-(       | p2       | BAD !   | p2@p2  |\n"
                 "| :-)       | p1       | OK!     | p1@p1  |\n"
+                "| :-(       | p2       | BAD !   | p2@p2  |\n"
                 "+-----------+----------+---------+--------+"
             ),
             mock.call("----"),
