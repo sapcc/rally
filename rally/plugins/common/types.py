@@ -23,18 +23,10 @@ from rally.task import types
 
 @plugin.configure(name="path_or_url")
 class PathOrUrl(types.ResourceType):
+    """Check whether file exists or url available."""
 
-    @classmethod
-    def transform(cls, clients, resource_config):
-        """Check whether file exists or url available.
-
-        :param clients: openstack admin client handles
-        :param resource_config: path or url
-
-        :returns: url or expanded file path
-        """
-
-        path = os.path.expanduser(resource_config)
+    def pre_process(self, resource_spec, config):
+        path = os.path.expanduser(resource_spec)
         if os.path.isfile(path):
             return path
         try:
@@ -50,52 +42,28 @@ class PathOrUrl(types.ResourceType):
 
 @plugin.configure(name="file")
 class FileType(types.ResourceType):
+    """Return content of the file by its path."""
 
-    @classmethod
-    def transform(cls, clients, resource_config):
-        """Return content of the file by its path.
-
-        :param clients: openstack admin client handles
-        :param resource_config: path to file
-
-        :returns: content of the file
-        """
-
-        with open(os.path.expanduser(resource_config), "r") as f:
+    def pre_process(self, resource_spec, config):
+        with open(os.path.expanduser(resource_spec), "r") as f:
             return f.read()
 
 
 @plugin.configure(name="expand_user_path")
 class ExpandUserPath(types.ResourceType):
+    """Expands user path."""
 
-    @classmethod
-    def transform(cls, clients, resource_config):
-        """Return content of the file by its path.
-
-        :param clients: openstack admin client handles
-        :param resource_config: path to file
-
-        :returns: content of the file
-        """
-
-        return os.path.expanduser(resource_config)
+    def pre_process(self, resource_spec, config):
+        return os.path.expanduser(resource_spec)
 
 
 @plugin.configure(name="file_dict")
 class FileTypeDict(types.ResourceType):
+    """Return the dictionary of items with file path and file content."""
 
-    @classmethod
-    def transform(cls, clients, resource_config):
-        """Return the dictionary of items with file path and file content.
-
-        :param clients: openstack admin client handles
-        :param resource_config: list of file paths
-
-        :returns: dictionary {file_path: file_content, ...}
-        """
-
+    def pre_process(self, resource_spec, config):
         file_type_dict = {}
-        for file_path in resource_config:
+        for file_path in resource_spec:
             file_path = os.path.expanduser(file_path)
             with open(file_path, "r") as f:
                 file_type_dict[file_path] = f.read()

@@ -15,6 +15,7 @@
 
 import mock
 
+from rally.common.plugin import plugin
 from rally.task import scenario
 from rally.task import types
 from tests.unit import test
@@ -61,66 +62,80 @@ class ConvertTestCase(test.TestCase):
 
     @mock.patch("rally.task.types.ResourceType.get", create=True)
     def test_convert(self, mock_resource_type_get):
-        mock_transform = mock_resource_type_get.return_value.transform
+        ctx = mock.MagicMock()
         args = types.preprocess("FakeConvertPlugin.one_arg",
-                                mock.MagicMock(),
+                                ctx,
                                 {"bar": "bar_config"})
         mock_resource_type_get.assert_called_once_with("test_bar")
-        mock_transform.assert_called_once_with(clients=mock.ANY,
-                                               resource_config="bar_config")
-        self.assertDictEqual(args, {"bar": mock_transform.return_value})
+        resourcetype_cls = mock_resource_type_get.return_value
+        resourcetype_cls.assert_called_once_with(ctx, {})
+        resourcetype_obj = resourcetype_cls.return_value
+        resourcetype_obj.pre_process.assert_called_once_with(
+            resource_spec="bar_config", config={"type": "test_bar"})
+        self.assertDictEqual(
+            args, {"bar": resourcetype_obj.pre_process.return_value})
 
     @mock.patch("rally.task.types.ResourceType.get", create=True)
     def test_convert_multiple(self, mock_resource_type_get):
-        loaders = {"test_bar": mock.Mock(), "test_baz": mock.Mock()}
-        mock_resource_type_get.side_effect = lambda p: loaders[p]
+        resourcetype_classes = {"bar": mock.Mock(), "baz": mock.Mock()}
 
-        args = types.preprocess("FakeConvertPlugin.two_args",
-                                mock.MagicMock(),
-                                {"bar": "bar_config",
-                                 "baz": "baz_config"})
+        def _get_resource_type(name):
+            # cut "test_" prefix
+            name = name[5:]
+            if name in resourcetype_classes:
+                return resourcetype_classes[name]
+            self.fail("The unexpected resource class tried to be used.")
+
+        mock_resource_type_get.side_effect = _get_resource_type
+
+        ctx = mock.MagicMock()
+        scenario_args = {"bar": "bar_config", "baz": "baz_config"}
+        processed_args = types.preprocess(
+            "FakeConvertPlugin.two_args", ctx, scenario_args)
+
         mock_resource_type_get.assert_has_calls([mock.call("test_bar"),
                                                  mock.call("test_baz")],
                                                 any_order=True)
-        loaders["test_bar"].transform.assert_called_once_with(
-            clients=mock.ANY, resource_config="bar_config")
-        loaders["test_baz"].transform.assert_called_once_with(
-            clients=mock.ANY, resource_config="baz_config")
-        self.assertDictEqual(
-            args,
-            {"bar": loaders["test_bar"].transform.return_value,
-             "baz": loaders["test_baz"].transform.return_value})
+
+        expected_dict = {}
+        for resourcetype_n, resourcetype_cls in resourcetype_classes.items():
+            resourcetype_cls.assert_called_once_with(ctx, {})
+            resourcetype_obj = resourcetype_cls.return_value
+            resourcetype_obj.pre_process.assert_called_once_with(
+                resource_spec=scenario_args[resourcetype_n],
+                config={"type": "test_%s" % resourcetype_n})
+            return_value = resourcetype_obj.pre_process.return_value
+            expected_dict[resourcetype_n] = return_value
+
+        self.assertDictEqual(expected_dict, processed_args)
 
 
 class PreprocessTestCase(test.TestCase):
 
     @mock.patch("rally.task.types.scenario.Scenario.get")
-    @mock.patch("rally.task.types.osclients")
-    def test_preprocess(self, mock_osclients, mock_scenario_get):
+    def test_preprocess(self, mock_scenario_get):
 
         name = "some_plugin"
+        type_name = "%s_type" % self.id()
 
         context = {
             "a": 1,
             "b": 2,
-            "admin": {"credential": mock.MagicMock()}
         }
         args = {"a": 10, "b": 20}
 
-        class Preprocessor(types.ResourceType):
+        @plugin.configure(type_name)
+        class SomeType(types.ResourceType):
 
-            @classmethod
-            def transform(cls, clients, resource_config):
-                return resource_config * 2
+            def pre_process(self, resource_spec, config):
+                return resource_spec * 2
 
         mock_scenario_get.return_value._meta_get.return_value = {
-            "a": Preprocessor
+            "a": {"type": type_name}
         }
 
         result = types.preprocess(name, context, args)
         mock_scenario_get.assert_called_once_with(name)
         mock_scenario_get.return_value._meta_get.assert_called_once_with(
             "preprocessors", default={})
-        mock_osclients.Clients.assert_called_once_with(
-            context["admin"]["credential"])
         self.assertEqual({"a": 20, "b": 20}, result)

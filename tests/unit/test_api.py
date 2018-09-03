@@ -67,7 +67,7 @@ class TaskAPITestCase(test.TestCase):
         mock_api.endpoint_url = None
         self.task_inst = api._Task(mock_api)
 
-    @mock.patch("rally.task.engine.TaskConfig")
+    @mock.patch("rally.api.task_cfg.TaskConfig")
     @mock.patch("rally.api.objects.Task")
     @mock.patch("rally.api.objects.Deployment.get")
     @mock.patch("rally.api.engine.TaskEngine")
@@ -206,7 +206,7 @@ class TaskAPITestCase(test.TestCase):
     def test_render_template_include_other_template(self):
         other_template_path = os.path.join(
             os.path.dirname(__file__),
-            "..", "..", "samples/tasks/scenarios/nova/boot.json")
+            "..", "..", "samples/tasks/scenarios/dummy/dummy.json")
         template = "{%% include \"%s\" %%}" % os.path.basename(
             other_template_path)
         with open(other_template_path) as f:
@@ -261,7 +261,7 @@ class TaskAPITestCase(test.TestCase):
                           self.task_inst.create, deployment=deployment_id,
                           tags=["a"])
 
-    @mock.patch("rally.task.engine.TaskConfig")
+    @mock.patch("rally.api.task_cfg.TaskConfig")
     @mock.patch("rally.api.objects.Task")
     @mock.patch("rally.api.objects.Deployment.get")
     @mock.patch("rally.api.engine.TaskEngine")
@@ -337,7 +337,7 @@ class TaskAPITestCase(test.TestCase):
                           config="config",
                           task=fake_task["uuid"])
 
-    @mock.patch("rally.task.engine.TaskConfig")
+    @mock.patch("rally.api.task_cfg.TaskConfig")
     @mock.patch("rally.api.objects.Task")
     @mock.patch("rally.api.objects.Deployment.get")
     @mock.patch("rally.api.engine.TaskEngine")
@@ -367,7 +367,7 @@ class TaskAPITestCase(test.TestCase):
     @ddt.data(True, False)
     @mock.patch("rally.api.time")
     @mock.patch("rally.api.objects.Task")
-    def test_abort_sync(self, soft, mock_task, mock_time):
+    def test_abort_with_waiting(self, soft, mock_task, mock_time):
         mock_task.get_status.side_effect = (
             consts.TaskStatus.INIT,
             consts.TaskStatus.VALIDATING,
@@ -378,7 +378,7 @@ class TaskAPITestCase(test.TestCase):
 
         some_uuid = "ca441749-0eb9-4fcc-b2f6-76d314c55404"
 
-        self.task_inst.abort(task_uuid=some_uuid, soft=soft, async=False)
+        self.task_inst.abort(task_uuid=some_uuid, soft=soft, wait=True)
 
         mock_task.get.assert_called_once_with(some_uuid)
         mock_task.get.return_value.abort.assert_called_once_with(soft=soft)
@@ -389,15 +389,25 @@ class TaskAPITestCase(test.TestCase):
     @ddt.data(True, False)
     @mock.patch("rally.api.time")
     @mock.patch("rally.api.objects.Task")
-    def test_abort_async(self, soft, mock_task, mock_time):
+    def test_abort_without_waiting(self, soft, mock_task, mock_time):
         some_uuid = "133695fb-400d-4988-859c-30bfaa0488ce"
 
-        self.task_inst.abort(task_uuid=some_uuid, soft=soft, async=True)
+        self.task_inst.abort(task_uuid=some_uuid, soft=soft, wait=False)
 
         mock_task.get.assert_called_once_with(some_uuid)
         mock_task.get.return_value.abort.assert_called_once_with(soft=soft)
         self.assertFalse(mock_task.get_status.called)
         self.assertFalse(mock_time.sleep.called)
+
+    @mock.patch("rally.api.LOG")
+    @mock.patch("rally.api.time")
+    @mock.patch("rally.api.objects.Task")
+    def test_abort_using_deprecated_async_argument(self, mock_task, mock_time,
+                                                   mock_log):
+        kwargs = {"async": True}
+        self.task_inst.abort(task_uuid="133695fb-400d-4988-859c-30bfaa0488ce",
+                             **kwargs)
+        self.assertTrue(mock_log.warning.called)
 
     @ddt.data({"task_status": "strange value",
                "expected_status": consts.TaskStatus.FINISHED},
@@ -732,7 +742,7 @@ class DeploymentAPITestCase(BaseDeploymentTestCase):
 
     @mock.patch("rally.api.objects.Deployment")
     def test_create_with_old_cfg(self, mock_deployment):
-        mock_deployment.return_value.spec = ""
+        mock_deployment.return_value.env_obj.spec = ""
 
         config = {"type": "ExistingCloud",
                   "creds": self.deployment_config}
@@ -883,14 +893,6 @@ class DeploymentAPITestCase(BaseDeploymentTestCase):
             self.deployment_inst.check(deployment="uuid"))
         env.check_health.assert_called_once_with()
         self.assertFalse(env.get_info.called)
-
-    def test_service_list(self):
-        fake_credential = fakes.fake_credential()
-        deployment = mock.Mock(spec=objects.Deployment)
-        deployment.get_credentials_for.return_value = {
-            "admin": fake_credential, "users": []}
-        result = self.deployment_inst.service_list(deployment=deployment)
-        self.assertEqual(fake_credential.list_services.return_value, result)
 
 
 class APITestCase(test.TestCase):
@@ -1404,12 +1406,9 @@ class VerifierAPITestCase(test.TestCase):
 
     @mock.patch("rally.cli.commands.verify.logging.is_debug",
                 return_value=False)
-    @mock.patch("rally.plugins.openstack.verification.tempest.manager."
-                "os.path.exists")
     @mock.patch("rally.api._Verifier._get")
     def test_configure_when_it_is_already_configured(self,
                                                      mock___verifier__get,
-                                                     mock_exists,
                                                      mock_is_debug):
         verifier_obj = mock___verifier__get.return_value
         verifier_id = "uuiiiidd"
@@ -1457,11 +1456,9 @@ class VerifierAPITestCase(test.TestCase):
 
     @mock.patch("rally.cli.commands.verify.logging.is_debug",
                 return_value=True)
-    @mock.patch("rally.plugins.openstack.verification.tempest.manager."
-                "os.path.exists")
     @mock.patch("rally.api._Verifier._get")
     def test_configure_when_it_is_already_configured_with_logging(
-            self, mock___verifier__get, mock_exists, mock_is_debug):
+            self, mock___verifier__get, mock_is_debug):
         verifier_obj = mock___verifier__get.return_value
         verifier_id = "uuiiiidd"
         deployment_id = "deployment"
@@ -1525,11 +1522,9 @@ class VerifierAPITestCase(test.TestCase):
                 self.assertIn("because verifier %s is in '%s' status"
                               % (verifier_obj, status), "%s" % e)
 
-    @mock.patch("rally.plugins.openstack.verification.tempest.manager."
-                "os.path.exists")
     @mock.patch("rally.api._Verifier._get")
     def test_override_config_when_it_is_already_configured(
-            self, mock___verifier__get, mock_exists):
+            self, mock___verifier__get):
         verifier_obj = mock___verifier__get.return_value
         verifier_id = "uuiiiidd"
         deployment_id = "deployment"

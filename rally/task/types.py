@@ -20,35 +20,13 @@ import re
 
 import six
 
+from rally.common import logging
 from rally.common.plugin import plugin
 from rally import exceptions
-from rally.plugins.openstack import osclients
 from rally.task import scenario
 
 
-def _get_preprocessor_loader(plugin_name):
-    """Get a class that loads a preprocessor class.
-
-    This returns a class with a single class method, ``transform``,
-    which, when called, finds a plugin and defers to its ``transform``
-    class method. This is necessary because ``convert()`` is called as
-    a decorator at import time, but we cannot be confident that the
-    ResourceType plugins may not be loaded yet. (In fact, since
-    ``convert()`` is used to decorate plugins, we can be confident
-    that not all plugins are loaded when it is called.)
-
-    This permits us to defer plugin searching until the moment when
-    ``preprocess()`` calls the various preprocessors, at which point
-    we can be certain that all plugins have been loaded and finding
-    them by name will work.
-    """
-    def transform(cls, *args, **kwargs):
-        plug = ResourceType.get(plugin_name)
-        return plug.transform(*args, **kwargs)
-
-    return type("PluginLoader_%s" % plugin_name,
-                (object,),
-                {"transform": classmethod(transform)})
+LOG = logging.getLogger(__name__)
 
 
 def convert(**kwargs):
@@ -65,43 +43,50 @@ def convert(**kwargs):
     plugin. Currently ``type`` is the only recognized key, but others
     may be added in the future.
     """
-    preprocessors = dict([(k, _get_preprocessor_loader(v["type"]))
-                          for k, v in kwargs.items()])
 
-    def wrapper(func):
-        func._meta_setdefault("preprocessors", {})
-        func._meta_get("preprocessors").update(preprocessors)
-        return func
+    def wrapper(cls):
+        for k, v in kwargs.items():
+            if "type" not in v:
+                LOG.warning(
+                    "The configuration for preprocessing '%s' argument of"
+                    " %s Scenario plugin is wrong. Check documentation "
+                    "for more details." % (k, cls.get_name()))
+
+        cls._meta_setdefault("preprocessors", {})
+        cls._meta_get("preprocessors").update(kwargs)
+        return cls
     return wrapper
 
 
 def preprocess(name, context, args):
     """Run preprocessor on scenario arguments.
 
-    :param name: Plugin name
+    :param name: Scenario plugin name
     :param context: dict with contexts data
-    :param args: args section of input task file
+    :param args: Scenario arguments for the workload
 
     :returns processed_args: dictionary object with additional client
                              and resource configuration
 
     """
-    preprocessors = scenario.Scenario.get(name)._meta_get("preprocessors",
-                                                          default={})
-
-    clients = None
-    if context.get("admin"):
-        clients = osclients.Clients(context["admin"]["credential"])
-    elif context.get("users"):
-        clients = osclients.Clients(context["users"][0]["credential"])
+    preprocessors = scenario.Scenario.get(name)._meta_get(
+        "preprocessors", default={})
 
     processed_args = copy.deepcopy(args)
 
-    for src, preprocessor in preprocessors.items():
-        resource_cfg = processed_args.get(src)
-        if resource_cfg:
-            processed_args[src] = preprocessor.transform(
-                clients=clients, resource_config=resource_cfg)
+    cache = {}
+    resource_types = {}
+    for src, type_cfg in preprocessors.items():
+        if type_cfg["type"] not in resource_types:
+            resource_cls = ResourceType.get(type_cfg["type"])
+            resource_types[type_cfg["type"]] = resource_cls(context, cache)
+
+        preprocessor = resource_types[type_cfg["type"]]
+        if src in processed_args:
+            res = preprocessor.pre_process(
+                resource_spec=processed_args[src], config=type_cfg)
+            if res is not None:
+                processed_args[src] = res
     return processed_args
 
 
@@ -109,20 +94,19 @@ def preprocess(name, context, args):
 @six.add_metaclass(abc.ABCMeta)
 class ResourceType(plugin.Plugin):
 
-    @classmethod
+    def __init__(self, context, cache=None):
+        self._context = context
+        self._global_cache = cache if cache is not None else {}
+        self._global_cache.setdefault(self.get_name(), {})
+        self._cache = self._global_cache[self.get_name()]
+
     @abc.abstractmethod
-    def transform(cls, clients, resource_config):
-        """Transform the resource.
+    def pre_process(self, resource_spec, config):
+        """Pre-process resource.
 
-        :param clients: openstack admin client handles
-        :param resource_config: scenario config of resource
-
-        :returns: transformed value of resource
+        :param resource_spec: A specification of the resource from the task
+        :param config: A configuration for preprocessing taken from the plugin
         """
-
-    @classmethod
-    def _get_doc(cls):
-        return cls.transform.__doc__
 
 
 def obj_from_name(resource_config, resources, typename):
