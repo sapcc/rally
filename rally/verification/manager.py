@@ -22,9 +22,6 @@ import sys
 import pkg_resources
 import six
 
-from pip._internal.req import parse_requirements
-from pip._internal import get_installed_distributions
-
 from rally.common.io import subunit_v2
 from rally.common import logging
 from rally.common.plugin import plugin

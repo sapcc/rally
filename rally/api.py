@@ -36,6 +36,7 @@ from rally import consts
 from rally import exceptions
 from rally.task import engine
 from rally.task import exporter as texporter
+from rally.task import task_cfg
 from rally.verification import context as vcontext
 from rally.verification import manager as vmanager
 from rally.verification import reporter as vreporter
@@ -167,18 +168,21 @@ class _Deployment(APIGroup):
                     if res["message"].startswith("Bad user creds"):
                         key = "user_error"
 
-                # NOTE(andreykurilin): the last not null line in traceback
-                #   includes Exception cls with a message. By parsing it, we
-                #   can get etype.
-                trace = res["traceback"].split("\n")
-                last_line = [l for l in trace if l][-1]
-                etype, _msg = last_line.split(":", 1)
+                if "traceback" in res:
+                    # NOTE(andreykurilin): the last not null line in traceback
+                    #   includes Exception cls with a message. By parsing it,
+                    #   we can get etype.
+                    trace = res["traceback"].split("\n")
+                    last_line = [l for l in trace if l][-1]
+                    etype, _msg = last_line.split(":", 1)
+                else:
+                    etype = "n/a"
                 result[name] = [
                     {
                         key: {
                             "etype": etype,
                             "msg": res["message"],
-                            "trace": res["traceback"]
+                            "trace": res.get("traceback", "n/a")
                         },
                         "services": []
                     }
@@ -350,7 +354,10 @@ class _Task(APIGroup):
         deployment = objects.Deployment.get(deployment)
 
         try:
-            config = engine.TaskConfig(config)
+            config = task_cfg.TaskConfig(config)
+        except exceptions.InvalidTaskException:
+            # it is a proper formed exception, nothing to do
+            raise
         except Exception as e:
             if logging.is_debug():
                 LOG.exception("Invalid Task")
@@ -394,7 +401,10 @@ class _Task(APIGroup):
                 status=deployment["status"])
 
         try:
-            config = engine.TaskConfig(config)
+            config = task_cfg.TaskConfig(config)
+        except exceptions.InvalidTaskException:
+            # it is a proper formed exception, nothing to do
+            raise
         except Exception as e:
             if logging.is_debug():
                 LOG.exception("Invalid Task")
