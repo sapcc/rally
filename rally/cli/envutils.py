@@ -121,12 +121,15 @@ def get_creds_from_env_vars():
                "required but not set: %s" % " ".join(missing_env_vars))
         raise exceptions.ValidationError(message=msg)
 
+    tenant_name = os.environ.get("OS_PROJECT_NAME",
+                                  os.environ.get("OS_TENANT_NAME"))
+
     creds = {
         "auth_url": os.environ["OS_AUTH_URL"],
         "admin": {
             "username": os.environ["OS_USERNAME"],
             "password": os.environ["OS_PASSWORD"],
-            "tenant_name": get_project_name_from_env()
+            "tenant_name": tenant_name
         },
         "endpoint_type": get_endpoint_type_from_env(),
         "endpoint": os.environ.get("OS_ENDPOINT"),
@@ -140,29 +143,28 @@ def get_creds_from_env_vars():
 
     user_domain_name = os.environ.get("OS_USER_DOMAIN_NAME")
     project_domain_name = os.environ.get("OS_PROJECT_DOMAIN_NAME")
+    domain_name = os.environ.get("OS_DOMAIN_NAME")
     identity_api_version = os.environ.get(
         "OS_IDENTITY_API_VERSION", os.environ.get("IDENTITY_API_VERSION"))
     if (identity_api_version == "3" or
             (identity_api_version is None and
-                (user_domain_name or project_domain_name))):
+                (user_domain_name or project_domain_name or domain_name))):
+        if (tenant_name is None or project_domain_name is None) and domain_name is None:
+            raise exceptions.ValidationError("Either the OS_PROJECT_NAME/OS_PROJECT_DOMAIN_NAME or "
+                                             "OS_DOMAIN_NAME environment variable "
+                                             "is required, but neither is set.")
         # it is Keystone v3 and it has another config scheme
         creds["admin"]["project_name"] = creds["admin"].pop("tenant_name")
         creds["admin"]["user_domain_name"] = user_domain_name or "Default"
         project_domain_name = project_domain_name or "Default"
         creds["admin"]["project_domain_name"] = project_domain_name
-
+        creds["admin"]["domain_name"] = domain_name
+    else:
+        if tenant_name is None:
+            raise exceptions.ValidationError("Either the OS_PROJECT_NAME or "
+                                             "OS_TENANT_NAME environment variable "
+                                             "is required, but neither is set.")
     return creds
-
-
-def get_project_name_from_env():
-    tenant_name = os.environ.get("OS_PROJECT_NAME",
-                                 os.environ.get("OS_TENANT_NAME"))
-    if tenant_name is None:
-        raise exceptions.ValidationError("Either the OS_PROJECT_NAME or "
-                                         "OS_TENANT_NAME environment variable "
-                                         "is required, but neither is set.")
-
-    return tenant_name
 
 
 def get_endpoint_type_from_env():
