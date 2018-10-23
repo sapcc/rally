@@ -35,7 +35,7 @@ def prepare_input_args(func):
 
         tags = _parse_test_tags(test_id)
 
-        if mime_type:
+        if mime_type and "; " in mime_type:
             mime_type, charset = mime_type.split("; ")[:2]
             charset = charset.split("=")[1]
         else:
