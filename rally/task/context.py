@@ -33,7 +33,7 @@ CONF = cfg.CONF
 CONF_OPTS = [
     cfg.StrOpt(
         "context_resource_name_format",
-        help="Template is used to generate random names of resources. X is"
+        help="Template is used to generate random names of resources. X is "
              "replaced with random latter, amount of X can be adjusted")
 ]
 CONF.register_opts(CONF_OPTS)
@@ -168,10 +168,26 @@ class BaseContext(plugin.Plugin, functional.FunctionalMixin,
     def __exit__(self, exc_type, exc_value, exc_traceback):
         self.cleanup()
 
+    def __eq__(self, other):
+        return self.get_order() == other.get_order()
+
+    def __lt__(self, other):
+        return self.get_order() < other.get_order()
+
+    def __gt__(self, other):
+        return self.get_order() > other.get_order()
+
+    def __le__(self, other):
+        return self.get_order() <= other.get_order()
+
+    def __ge__(self, other):
+        return self.get_order() >= other.get_order()
+
 
 @validation.add_default("jsonschema")
 @plugin.base()
 class Context(BaseContext, validation.ValidatablePluginMixin):
+    """The base class for task contexts."""
     def __init__(self, ctx):
         super(Context, self).__init__(ctx)
         self.task = self.context.get("task", {})

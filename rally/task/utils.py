@@ -172,7 +172,7 @@ def wait_is_ready(resource, is_ready, update_resource=None,
                 timeout=timeout)
 
 
-def wait_for_status(resource, ready_statuses, failure_statuses=None,
+def wait_for_status(resource, ready_statuses, failure_statuses=["error"],
                     status_attr="status", update_resource=None,
                     timeout=60, check_interval=1, check_deletion=False,
                     id_attr="id"):
@@ -192,7 +192,7 @@ def wait_for_status(resource, ready_statuses, failure_statuses=None,
 
     if (ready_statuses & failure_statuses):
         raise ValueError(
-            "Can't wait for resource's %s status. Ready and Failure"
+            "Can't wait for resource's %s status. Ready and Failure "
             "statuses conflict." % resource_repr)
     if not ready_statuses:
         raise ValueError(

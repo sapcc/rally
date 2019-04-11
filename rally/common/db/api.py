@@ -43,6 +43,7 @@ these objects be simple dictionaries.
 import datetime as dt
 import functools
 import six
+import tempfile
 import time
 
 from oslo_db import exception as db_exc
@@ -59,7 +60,9 @@ from rally.task.processing import charts
 
 
 CONF = cfg.CONF
-db_options.set_defaults(CONF, connection="sqlite:////tmp/rally.sqlite")
+
+db_options.set_defaults(
+    CONF, connection="sqlite:///%s/rally.sqlite" % tempfile.gettempdir())
 
 _FACADE = None
 _SESSION_MAKER = None
@@ -119,7 +122,7 @@ def serialize(data):
             result[k] = serialize(data[k])
         return result
 
-    raise ValueError("data has wrong type %s" % data)
+    raise ValueError("Failed to serialize %r data type." % type(data).__name__)
 
 
 def with_session(f):
@@ -284,7 +287,7 @@ def task_update_status(session, uuid, status, allowed_statuses):
 
 
 @with_session
-def task_list(session, status=None, env=None, tags=None):
+def task_list(session, status=None, env=None, tags=None, uuids_only=False):
     tasks = []
     query = session.query(models.Task)
 
@@ -302,9 +305,13 @@ def task_list(session, status=None, env=None, tags=None):
             return []
         query = query.filter(models.Task.uuid.in_(uuids))
 
+    if uuids_only:
+        query = query.options(sa.orm.load_only("uuid"))
+
     for task in query.all():
         task = task.as_dict()
-        task["tags"] = sorted(tags_get(task["uuid"], consts.TagType.TASK))
+        if not uuids_only:
+            task["tags"] = sorted(tags_get(task["uuid"], consts.TagType.TASK))
         tasks.append(task)
 
     return tasks
