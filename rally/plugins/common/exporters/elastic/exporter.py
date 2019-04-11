@@ -23,6 +23,7 @@ from rally.common import validation
 from rally import consts
 from rally import exceptions
 from rally.plugins.common.exporters.elastic import client
+from rally.plugins.common.exporters.elastic import flatten
 from rally.task import exporter
 
 LOG = logging.getLogger(__name__)
@@ -47,14 +48,16 @@ class Validator(validation.Validator):
         except exceptions.RallyException as e:
             # re-raise a proper exception to hide redundant traceback
             self.fail(e.format_message())
-        if not (version.startswith("2.") or version.startswith("5.")):
+        if not (version.startswith("2.")
+                or version.startswith("5.")
+                or version.startswith("6.")):
             self.fail("The unsupported version detected %s." % version)
 
 
 @validation.add("es_exporter_destination")
 @exporter.configure("elastic")
 class ElasticSearchExporter(exporter.TaskExporter):
-    """Exports task results to the ElasticSearch 2.x or 5.x clusters.
+    """Exports task results to the ElasticSearch 2.x, 5.x or 6.x clusters.
 
     The exported data includes:
 
@@ -143,14 +146,6 @@ class ElasticSearchExporter(exporter.TaskExporter):
                 or self.output_destination.startswith("https://")))
         if self._remote:
             self._client = client.ElasticSearchClient(self.output_destination)
-
-    @staticmethod
-    def _pack(obj):
-
-        import morph
-
-        return sorted(["%s=%s" % (k, v)
-                       for k, v in morph.flatten(obj).items()])
 
     def _add_index(self, index, body, doc_id=None, doc_type="data"):
         """Create a document for the specified index with specified id.
@@ -274,10 +269,6 @@ class ElasticSearchExporter(exporter.TaskExporter):
                 # the case when it is a top level of the scenario and and
                 # the item fails after some atomic actions completed
                 (not _parent and atomic_actions and
-                    not atomic_actions[-1].get("failed", False)) or
-                # the case when the item fails after some atomic actions
-                # completed and there is a root atomic
-                (_parent and atomic_actions and not _parent[1]["success"] and
                     not atomic_actions[-1].get("failed", False))):
             act_id = act_id_tmpl % {
                 "itr_id": itr["id"],
@@ -351,11 +342,11 @@ class ElasticSearchExporter(exporter.TaskExporter):
                     "deployment_uuid": task["env_uuid"],
                     "deployment_name": task["env_name"],
                     "scenario_name": workload["name"],
-                    "scenario_cfg": self._pack(workload["args"]),
+                    "scenario_cfg": flatten.transform(workload["args"]),
                     "description": workload["description"],
                     "runner_name": workload["runner_type"],
-                    "runner_cfg": self._pack(workload["runner"]),
-                    "contexts": self._pack(workload["contexts"]),
+                    "runner_cfg": flatten.transform(workload["runner"]),
+                    "contexts": flatten.transform(workload["contexts"]),
                     "started_at": started_at,
                     "load_duration": workload["load_duration"],
                     "full_duration": workload["full_duration"],
