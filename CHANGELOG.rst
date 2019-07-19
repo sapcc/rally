@@ -17,8 +17,44 @@ Changelog
 .. Release notes for existing releases are MUTABLE! If there is something that
    was missed or can be improved, feel free to change it!
 
+[1.6.0] - 2019-06-19
+--------------------
+
+Added
+~~~~~~~
+
+A list of tests to skip while running verification now supports regular
+expressions.
+
+Fixed
+~~~~~
+
+* incompatibility with SQLAlchemy 1.3
+* several py3 issues of verification component
+
+[1.5.1] - 2019-05-15
+--------------------
+
+Fixed
+~~~~~
+
+**rally deployment create --fromenv** creates wrong spec for
+rally-openstack<=1.4.0 which doesn't pass **rally deployment check**.
+
+`Launchpad-bug #1829030 <https://launchpad.net/bugs/1829030>`_
+
+
+[1.5.0] - 2019-05-08
+--------------------
+
+Added
+~~~~~
+
+New two charts **EmbeddedChart** and **EmbeddedExternalChart** for embedding
+custom html code or external pages as complete charts of scenarios.
+
 [1.4.1] - 2019-02-28
-------------
+--------------------
 
 Fixed
 ~~~~~

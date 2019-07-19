@@ -1380,12 +1380,12 @@ class VerifierAPITestCase(test.TestCase):
         verifier_obj.update_properties.assert_called_once_with(
             status=verifier_obj.status, system_wide=True)
 
+        verifier_obj.update_status.reset_mock()
         # check switching from system-wide to system-wide
         verifier_obj.system_wide = True
-        expected_calls = len(verifier_obj.update_status.call_args())
         self.verifier_inst.update(verifier_id=uuid, system_wide=True)
-        self.assertTrue(expected_calls,
-                        len(verifier_obj.update_status.call_args()))
+        verifier_obj.update_status.assert_called_once_with(
+            consts.VerifierStatus.UPDATING)
         self.assertFalse(verifier_obj.manager.install_venv.called)
 
     @mock.patch("rally.api._Verifier._get")
@@ -1448,7 +1448,7 @@ class VerifierAPITestCase(test.TestCase):
                              reconfigure=True,
                              extra_options=extra))
         self.assertFalse(verifier_obj.manager.extend_configuration.called)
-        verifier_obj.manager.configure.asset_called_once_with(
+        verifier_obj.manager.configure.assert_called_once_with(
             extra_options=extra)
 
         verifier_obj.update_status.reset_mock()
@@ -1497,7 +1497,7 @@ class VerifierAPITestCase(test.TestCase):
                              reconfigure=True,
                              extra_options=extra))
         self.assertFalse(verifier_obj.manager.extend_configuration.called)
-        verifier_obj.manager.configure.asset_called_once_with(
+        verifier_obj.manager.configure.assert_called_once_with(
             extra_options=extra)
 
         verifier_obj.update_status.reset_mock()
@@ -1955,7 +1955,7 @@ class VerificationAPITestCase(test.TestCase):
                                      concurrency=1)
         mock_start.assert_called_once_with(
             verifier_id="v_uuid", deployment_id="d_uuid",
-            load_list=tests.keys(), tags=None, concurrency=1)
+            load_list=list(tests.keys()), tags=None, concurrency=1)
 
     @mock.patch("rally.api._Verification.start")
     @mock.patch("rally.api.objects.Verification.create")

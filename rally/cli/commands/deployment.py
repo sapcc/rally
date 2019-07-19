@@ -29,6 +29,7 @@ from rally.common import fileutils
 from rally.common import logging
 from rally.common import utils
 from rally.common import yamlutils as yaml
+from rally.env import env_mgr
 from rally import exceptions
 from rally import plugins
 
@@ -82,8 +83,24 @@ class DeploymentCommands(object):
         """
 
         if fromenv:
-            # TODO(astudenov): move this to Credential plugin
-            config = {"openstack": envutils.get_creds_from_env_vars()}
+            result = env_mgr.EnvManager.create_spec_from_sys_environ()
+            config = result["spec"]
+            if "existing@openstack" in config:
+                # NOTE(andreykurilin): if we are are here it means that
+                #   rally-openstack package is installed
+                import rally_openstack
+                if rally_openstack.__version_tuple__ <= (1, 4, 0):
+                    print(rally_openstack.__version_tuple__)
+                    if config["existing@openstack"]["https_key"]:
+                        print("WARNING: OS_KEY is ignored due to old version "
+                              "of rally-openstack package.")
+                    # NOTE(andreykurilin): To support rally-openstack <=1.4.0
+                    #   we need to remove https_key, since OpenStackCredentials
+                    #   object doesn't support it.
+                    #   Latest rally-openstack fixed this issue with
+                    #   https://github.com/openstack/rally-openstack/commit/c7483386e6b59474c83e3ecd0c7ee0e77ff50c02
+
+                    config["existing@openstack"].pop("https_key")
         else:
             if not filename:
                 config = {}
