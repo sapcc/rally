@@ -33,12 +33,12 @@ class Outliers(sla.SLA):
     """
     CONFIG_SCHEMA = {
         "type": "object",
-        "$schema": consts.JSON_SCHEMA,
+        "$schema": consts.JSON_SCHEMA7,
         "properties": {
             "max": {"type": "integer", "minimum": 0},
             "min_iterations": {"type": "integer", "minimum": 3},
             "sigmas": {"type": "number", "minimum": 0.0,
-                       "exclusiveMinimum": True}
+                       "exclusiveMinimum": 0.0}
         },
         "additionalProperties": False,
     }
