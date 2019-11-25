@@ -314,7 +314,7 @@ class ActionBuilder(object):
 
     SCHEMA_TEMPLATE = {
         "type": "array",
-        "$schema": consts.JSON_SCHEMA,
+        "$schema": consts.JSON_SCHEMA7,
         "items": {
             "type": "object",
             "properties": {},
@@ -326,7 +326,7 @@ class ActionBuilder(object):
     ITEM_TEMPLATE = {
         "type": "integer",
         "minimum": 0,
-        "exclusiveMinimum": True,
+        "exclusiveMinimum": 0.0,
         "optional": True
     }
 

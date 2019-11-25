@@ -17,11 +17,63 @@ Changelog
 .. Release notes for existing releases are MUTABLE! If there is something that
    was missed or can be improved, feel free to change it!
 
+
+[2.1.0] - 2019-11-19
+--------------------
+
+Please note that Python 2.7 will reach the end of its life on
+January 1st, 2020. A future version of Rally will drop support for Python 2.7,
+it will happen soon. Also, the same will happen with support of Python 3.4 and
+Python 3.5
+
+Removed
+~~~~~~~
+
+Library *netaddr* from direct project requirements. We never use it at Rally
+framework.
+
+Fixed
+~~~~~
+
+Support of latest alembic
+
+`Launchpad-bug #1844884 <https://launchpad.net/bugs/1844884>`_
+
+[2.0.0] - 2019-09-13
+--------------------
+
+Changed
+~~~~~~~
+
+python jsonschema dependency is not limited by *<3.0.0* anymore and you can
+use draft-7 as for now.
+
+Removed
+~~~~~~~
+
+* *rally task sla_check* command was deprecated in Rally 0.8.0 in favor of
+  *rally task sla-check*.
+
+* *rally-manage db* command (and the whole *rally-manage* entry-point) was
+  deprecated in Rally 0.10.0 in favor of *rally db* command.
+
+* *--namespace* argument was deprecated in Rally 0.10.0 in favor of
+  *--platform* which has better meaning.
+  Affected commands: *rally plugin show*, *rally plugin list*,
+  *rally verify list-plugins*, *rally verify create-verifier*.
+
+* *--tasks* argument of *rally task report* command and *--task* argument of
+  *rally task use* command were deprecated in Rally 0.10.0 in favor of
+  unified *--uuid* argument.
+
+* *--junit* argument of *rally task report* command is deprecated in
+  Rally 0.10.0 in favor of *rally task export --type junit-xml*
+
 [1.6.0] - 2019-06-19
 --------------------
 
 Added
-~~~~~~~
+~~~~~
 
 A list of tests to skip while running verification now supports regular
 expressions.

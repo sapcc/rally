@@ -148,7 +148,7 @@ class RPSScenarioRunner(runner.ScenarioRunner):
 
     CONFIG_SCHEMA = {
         "type": "object",
-        "$schema": consts.JSON_SCHEMA,
+        "$schema": consts.JSON_SCHEMA7,
         "properties": {
             "times": {
                 "type": "integer",
@@ -160,7 +160,7 @@ class RPSScenarioRunner(runner.ScenarioRunner):
                         "description": "Generate constant requests per second "
                                        "during the whole workload.",
                         "type": "number",
-                        "exclusiveMinimum": True,
+                        "exclusiveMinimum": 0,
                         "minimum": 0
                     },
                     {
